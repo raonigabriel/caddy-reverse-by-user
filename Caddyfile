@@ -1,0 +1,86 @@
+{
+	http_port 8080
+}
+
+localhost:8080 {
+
+	# Hide server header field
+	header /* {
+		-Server
+	}
+
+	# To match GET
+	@Get {
+		path /*
+		method GET
+	}
+
+	# To match POST, PUT, DELETE, ...
+	@OtherMethods {
+		path /*
+		not method GET
+	}
+
+	# To match the user "Grace"
+	@Grace {
+		expression {http.auth.user.id} == 'Grace'
+	}
+
+	# To match the user "Robert"
+	@Robert {
+		expression {http.auth.user.id} == 'Robert'
+	}
+
+	# Notice that we handle @Get and @OtherMethods at the same level 
+	handle @Get {
+
+		# Compress with gzip --best
+		encode {
+			gzip 9
+		}
+
+		# We enable basic auth and there are 3 users
+		# For the sake of simplicity, all share the same password "hiccup™
+		basicauth {
+			Grace JDJhJDEwJEVCNmdaNEg2Ti5iejRMYkF3MFZhZ3VtV3E1SzBWZEZ5Q3VWc0tzOEJwZE9TaFlZdEVkZDhX
+			Robert JDJhJDEwJEVCNmdaNEg2Ti5iejRMYkF3MFZhZ3VtV3E1SzBWZEZ5Q3VWc0tzOEJwZE9TaFlZdEVkZDhX
+			Peter JDJhJDEwJEVCNmdaNEg2Ti5iejRMYkF3MFZhZ3VtV3E1SzBWZEZ5Q3VWc0tzOEJwZE9TaFlZdEVkZDhX
+		}
+
+		# Grace gets Go-Lang site
+		handle @Grace {
+			reverse_proxy {
+				to https://golang.org
+				header_up Host golang.org
+				header_up -Authorization
+			}
+		}
+
+		# Robert gets Rust-Lang site
+		handle @Robert {
+			reverse_proxy {
+				to https://www.rust-lang.org
+				header_up Host www.rust-lang.org
+				header_up -Authorization
+			}
+		}
+
+		# Everybody else (in this case, only Peter) gets Python site
+		handle {
+			reverse_proxy {
+				to https://www.python.org
+				header_up Host www.python.org
+				header_up -Authorization
+			}
+		}
+	}
+
+	# All other methods are not supported
+	handle @OtherMethods {
+		respond 405 {
+			body "Method Not Allowed"
+			close
+		}
+	}
+
+}
